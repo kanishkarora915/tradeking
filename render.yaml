@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: tradeking
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: cd backend && python -m uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: RENDER
+        value: "true"
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tradeking-db
+          property: connectionString
+      - key: KITE_API_KEY
+        sync: false
+      - key: KITE_API_SECRET
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+    plan: starter
+
+databases:
+  - name: tradeking-db
+    plan: free
+    databaseName: tradeking
+    postgresMajorVersion: "16"
