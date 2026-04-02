@@ -223,25 +223,57 @@ async def get_risk():
     }
 
 
-# ─── KITE AUTH (API Key + Secret only, no OAuth redirect) ───────
+# ─── KITE AUTH (Auto login — zero manual steps) ────────────────
 
 @app.get("/api/auth/kite/login")
 async def kite_login():
-    """Get Kite login URL. User opens this manually, logs in, copies request_token."""
-    return {
-        "login_url": get_login_url(),
-        "instructions": "Open this URL, login, copy the request_token from the redirected URL, then POST it to /api/auth/kite/session",
-    }
+    """Redirect user directly to Zerodha login page."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=get_login_url())
 
 
-@app.post("/api/auth/kite/session")
-async def kite_session(request_token: str = Query(...)):
-    """Generate Kite session using API key + secret + request_token."""
+@app.get("/api/auth/kite/callback")
+async def kite_callback(request_token: str = Query(None), action: str = Query(None)):
+    """Auto callback from Zerodha after login.
+    Zerodha redirects here with ?request_token=xxx&action=login
+    We auto-generate session and redirect to dashboard.
+    """
+    from fastapi.responses import HTMLResponse
+    if not request_token:
+        return HTMLResponse("<h2>Login failed — no request token received</h2>", status_code=400)
     try:
         session_data = generate_session(request_token)
-        return {"status": "success", **session_data}
+        user = session_data.get("user_name", session_data.get("user_id", ""))
+        return HTMLResponse(f"""
+        <html>
+        <head>
+            <meta http-equiv="refresh" content="2;url=/" />
+            <style>
+                body {{ background: #080A0F; color: #F5F5F7; font-family: 'DM Sans', sans-serif;
+                       display: flex; align-items: center; justify-content: center; height: 100vh; }}
+                .box {{ text-align: center; }}
+                .check {{ color: #30D158; font-size: 48px; }}
+                h2 {{ margin: 16px 0 8px; }}
+                p {{ color: #8E8E93; }}
+            </style>
+        </head>
+        <body>
+            <div class="box">
+                <div class="check">&#10003;</div>
+                <h2>Welcome, {user}!</h2>
+                <p>Kite connected successfully. Redirecting to TRADEKING dashboard...</p>
+            </div>
+        </body>
+        </html>
+        """)
     except Exception as e:
-        return JSONResponse(status_code=400, content={"error": str(e)})
+        return HTMLResponse(f"""
+        <html>
+        <head><style>body {{ background: #080A0F; color: #FF453A; font-family: sans-serif;
+               display: flex; align-items: center; justify-content: center; height: 100vh; }}</style></head>
+        <body><div><h2>Login Failed</h2><p>{str(e)}</p><a href="/api/auth/kite/login" style="color:#0A84FF">Try Again</a></div></body>
+        </html>
+        """, status_code=400)
 
 
 @app.get("/api/auth/status")

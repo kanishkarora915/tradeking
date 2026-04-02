@@ -1,7 +1,6 @@
 """
 TRADEKING — Zerodha Kite Connect Auth Handler
-Simple API Key + Secret based authentication (no OAuth redirect).
-User manually logs in, pastes request_token, backend generates session.
+Auto login: User clicks login → Zerodha → callback auto-captures token → session created.
 """
 from kiteconnect import KiteConnect
 from datetime import datetime
@@ -25,7 +24,6 @@ def get_kite() -> KiteConnect:
 
     kite = KiteConnect(api_key=KITE_API_KEY)
 
-    # If access token already set in env
     if KITE_ACCESS_TOKEN:
         kite.set_access_token(KITE_ACCESS_TOKEN)
         _kite_instance = kite
@@ -33,26 +31,17 @@ def get_kite() -> KiteConnect:
         logger.info("Kite initialized with env access token")
         return kite
 
-    raise RuntimeError(
-        "No access token. Login at /api/auth/kite/login and POST request_token to /api/auth/kite/session"
-    )
+    raise RuntimeError("Not logged in. Login via /api/auth/kite/login")
 
 
 def get_login_url() -> str:
-    """Get Kite login URL — user opens this in browser manually."""
+    """Get Kite login URL — redirects back to our callback automatically."""
     kite = KiteConnect(api_key=KITE_API_KEY)
     return kite.login_url()
 
 
 def generate_session(request_token: str) -> dict:
-    """Generate session using API key + secret + request_token.
-
-    User flow:
-    1. Open login URL in browser
-    2. Login with Zerodha credentials
-    3. Copy request_token from redirected URL
-    4. POST it to /api/auth/kite/session
-    """
+    """Auto generate session from callback request_token."""
     global _kite_instance, _access_token
 
     kite = KiteConnect(api_key=KITE_API_KEY)
@@ -63,10 +52,11 @@ def generate_session(request_token: str) -> dict:
     _kite_instance = kite
     _access_token = access_token
 
-    logger.info(f"Kite session created at {datetime.now()}")
+    logger.info(f"Kite session created at {datetime.now()} for user {data.get('user_id', '')}")
     return {
         "access_token": access_token,
         "user_id": data.get("user_id", ""),
+        "user_name": data.get("user_name", ""),
         "login_time": datetime.now().isoformat(),
     }
 
