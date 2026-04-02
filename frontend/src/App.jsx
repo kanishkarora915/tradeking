@@ -2,7 +2,7 @@
  * TRADEKING — Main Application
  * Institutional Options Intelligence Dashboard
  */
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import TopBar from './components/TopBar'
 import TrapAlertBanner from './components/TrapAlertBanner'
 import IndexCard from './components/IndexCard'
@@ -19,13 +19,29 @@ export default function App() {
   const { signals, macro, loading, lastUpdate, handleWSMessage } = useSignals()
   const { status: wsStatus } = useWebSocket(handleWSMessage)
   const [activeIndex, setActiveIndex] = useState('NIFTY')
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Auto Kite login — check auth on load, redirect if not logged in
+  useEffect(() => {
+    fetch('/api/auth/status')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.authenticated) {
+          // Redirect to Kite login automatically
+          window.location.href = '/api/auth/kite/login'
+        } else {
+          setAuthChecked(true)
+        }
+      })
+      .catch(() => setAuthChecked(true)) // if backend down, show dashboard anyway
+  }, [])
 
   // Get active index engine data from signals
   const activeEngines = useMemo(() => {
     return signals[activeIndex]?.engines || null
   }, [signals, activeIndex])
 
-  if (loading) {
+  if (!authChecked || loading) {
     return (
       <div className="app-layout" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>

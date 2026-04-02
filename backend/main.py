@@ -245,6 +245,8 @@ async def kite_callback(request_token: str = Query(None), action: str = Query(No
     try:
         session_data = generate_session(request_token)
         user = session_data.get("user_name", session_data.get("user_id", ""))
+        # Trigger engine run immediately after login
+        asyncio.create_task(run_all_engines())
         return HTMLResponse(f"""
         <html>
         <head>
