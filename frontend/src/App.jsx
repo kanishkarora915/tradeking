@@ -16,10 +16,10 @@ import useSignals from './hooks/useSignals'
 const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX']
 
 export default function App() {
-  const { signals, macro, loading, lastUpdate, handleWSMessage } = useSignals()
-  const { status: wsStatus } = useWebSocket(handleWSMessage)
   const [activeIndex, setActiveIndex] = useState('NIFTY')
   const [authChecked, setAuthChecked] = useState(false)
+  const { signals, macro, loading, lastUpdate, handleWSMessage } = useSignals()
+  const { status: wsStatus } = useWebSocket(handleWSMessage)
 
   // Auto Kite login — check auth on load, redirect if not logged in
   useEffect(() => {
@@ -27,13 +27,12 @@ export default function App() {
       .then(r => r.json())
       .then(data => {
         if (!data.authenticated) {
-          // Redirect to Kite login automatically
           window.location.href = '/api/auth/kite/login'
         } else {
           setAuthChecked(true)
         }
       })
-      .catch(() => setAuthChecked(true)) // if backend down, show dashboard anyway
+      .catch(() => setAuthChecked(true))
   }, [])
 
   // Get active index engine data from signals
