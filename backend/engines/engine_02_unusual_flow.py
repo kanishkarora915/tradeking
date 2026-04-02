@@ -49,7 +49,7 @@ class UnusualFlowEngine:
         """
         try:
             if not chain_data:
-                return self._mock_result(index)
+                return {"score": 0, "signals_active": 0, "block_trades": [], "otm_spikes": [], "direction": "NO_DATA", "call_unusual_volume": 0, "put_unusual_volume": 0, "no_data": True}
 
             otm_spikes = []
             block_trades = []
@@ -128,16 +128,3 @@ class UnusualFlowEngine:
             logger.error(f"Unusual Flow Engine error for {index}: {e}")
             return {"score": 0, "signals_active": 0, "block_trades": [], "otm_spikes": [], "direction": "NEUTRAL", "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        direction = random.choice(["BULLISH", "BEARISH", "NEUTRAL", "MIXED"])
-        score = {"BULLISH": 2.0, "BEARISH": -2.0, "NEUTRAL": 0.0, "MIXED": 0.5}[direction]
-        return {
-            "score": score,
-            "signals_active": random.randint(0, 5),
-            "block_trades": [],
-            "otm_spikes": [],
-            "direction": direction,
-            "call_unusual_volume": random.randint(0, 100000),
-            "put_unusual_volume": random.randint(0, 100000),
-        }

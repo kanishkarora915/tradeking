@@ -117,7 +117,7 @@ class LiquidityPoolEngine:
         """
         try:
             if not chain_data:
-                return self._mock_result(index)
+                return {"score": 0, "max_pain": 0, "put_wall": 0, "call_wall": 0, "put_wall_oi": 0, "call_wall_oi": 0, "stop_hunt_zones": {"above": [], "below": []}, "distance_to_max_pain": 0, "distance_pct": 0, "no_data": True}
 
             max_pain = self.calculate_max_pain(chain_data)
             walls = self.find_oi_walls(chain_data)
@@ -168,17 +168,3 @@ class LiquidityPoolEngine:
             logger.error(f"Liquidity Pool Engine error for {index}: {e}")
             return {"score": 0, "max_pain": 0, "put_wall": 0, "call_wall": 0, "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        base = {"NIFTY": 23400, "BANKNIFTY": 51000, "SENSEX": 77500}.get(index, 23000)
-        return {
-            "score": round(random.uniform(-1, 1), 2),
-            "max_pain": base + random.choice([-50, 0, 50]),
-            "put_wall": base - random.choice([100, 200, 300]),
-            "call_wall": base + random.choice([100, 200, 300]),
-            "put_wall_oi": random.randint(500000, 2000000),
-            "call_wall_oi": random.randint(500000, 2000000),
-            "stop_hunt_zones": {"above": [], "below": []},
-            "distance_to_max_pain": round(random.uniform(-100, 100), 2),
-            "distance_pct": round(random.uniform(-0.5, 0.5), 2),
-        }

@@ -81,9 +81,6 @@ app.add_middleware(
 async def get_signals():
     """Get current signals for all 3 indices."""
     signals = get_latest_signals()
-    if not signals:
-        # Return mock data if no signals computed yet
-        return _mock_signals()
 
     result = {}
     for index in INDICES:
@@ -100,7 +97,7 @@ async def get_signals():
             "top_reason": conf.get("top_signal_reason", ""),
             "ivr_gate": conf.get("ivr_gate", False),
             "expiry_gate": conf.get("expiry_gate", False),
-            "spot_price": sig.get("spot_price", 0),
+            "spot_price": data.get("spot_price", sig.get("spot_price", 0)),
             "timestamp": data.get("timestamp", ""),
         }
     return result
@@ -116,7 +113,7 @@ async def get_signal_detail(index: str):
     signals = get_latest_signals()
     data = signals.get(index, {})
     if not data:
-        return _mock_signal_detail(index)
+        return {"signal": "WAIT", "score": 0, "message": "No data yet — login to Kite first"}
     return data
 
 
@@ -129,7 +126,7 @@ async def get_engines(index: str):
 
     scores = get_latest_engine_scores(index)
     if not scores:
-        return _mock_engine_scores(index)
+        return {"message": "No engine data yet — login to Kite first"}
     return scores
 
 
@@ -140,16 +137,23 @@ async def get_oi_chain(index: str):
     if index not in INDICES:
         return JSONResponse(status_code=400, content={"error": f"Invalid index: {index}"})
 
-    # Try to get from engine 05 liquidity pool data
+    # Get real chain from latest engine run
     scores = get_latest_engine_scores(index)
     liquidity = scores.get("engine_05_liquidity_pool", {})
+
+    # Get real chain data from scheduler
+    from scheduler import latest_signals
+    sig_data = latest_signals.get(index, {})
+    engines = sig_data.get("engines", {})
+    # Build chain from OI engine data if available
+    chain = []
 
     return {
         "index": index,
         "max_pain": liquidity.get("max_pain", 0),
         "call_wall": liquidity.get("call_wall", 0),
         "put_wall": liquidity.get("put_wall", 0),
-        "chain": _mock_oi_chain(index),
+        "chain": chain,
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -159,9 +163,6 @@ async def get_macro():
     """Get VIX, FII data, GIFT Nifty."""
     scores = get_latest_engine_scores("NIFTY")
     macro = scores.get("engine_07_macro", {})
-
-    if not macro:
-        return _mock_macro()
 
     return {
         "vix": macro.get("vix", 0),
@@ -368,124 +369,11 @@ def _serialize_signals(signals: dict) -> dict:
             "pcr": 0,  # Will be computed from OI data
             "vix": macro.get("vix", 0),
             "max_pain": liquidity.get("max_pain", 0),
-            "spot_price": data.get("signal", {}).get("spot_price", 0),
+            "spot_price": data.get("spot_price", data.get("signal", {}).get("spot_price", 0)),
             "engines": {k: {"score": v.get("score", 0)} for k, v in engines.items()},
             "timestamp": data.get("timestamp", ""),
         }
     return result
-
-
-def _mock_signals() -> dict:
-    """Return mock signals for development."""
-    import random
-    mock = {}
-    for index in INDICES:
-        base = {"NIFTY": 23450, "BANKNIFTY": 51200, "SENSEX": 77800}[index]
-        score = round(random.uniform(-8, 8), 1)
-        if score > 5:
-            signal = "STRONG_CALL"
-        elif score > 3:
-            signal = "CALL"
-        elif score < -5:
-            signal = "STRONG_PUT"
-        elif score < -3:
-            signal = "PUT"
-        else:
-            signal = "WAIT"
-
-        mock[index] = {
-            "index": index,
-            "signal": signal,
-            "score": score,
-            "confidence": "HIGH" if abs(score) > 5 else "MEDIUM" if abs(score) > 3 else "LOW",
-            "engines_bullish": random.randint(1, 6),
-            "engines_bearish": random.randint(0, 4),
-            "top_reason": random.choice([
-                f"BEAR_TRAP detected at {base - 50}",
-                f"Strong unusual call flow at {base + 100}",
-                "FII net long + expanding basis",
-                "OI state: BULLISH, velocity +12%",
-            ]),
-            "ivr_gate": False,
-            "expiry_gate": False,
-            "spot_price": base + random.randint(-50, 50),
-            "ivr": round(random.uniform(15, 55), 1),
-            "pcr": round(random.uniform(0.6, 1.4), 2),
-            "vix": round(random.uniform(11, 19), 2),
-            "timestamp": datetime.now().isoformat(),
-        }
-    return mock
-
-
-def _mock_signal_detail(index: str) -> dict:
-    """Mock detailed signal for an index."""
-    from engines import ENGINE_REGISTRY
-    engines = {}
-    for name, cls in ENGINE_REGISTRY.items():
-        engine = cls()
-        engines[name] = engine.run(index)
-
-    from scoring.confluence import calculate_confluence
-    ivr_gate = engines.get("engine_04_iv_skew", {}).get("gate_active", False)
-    confluence = calculate_confluence(engines, ivr_gate)
-
-    return {
-        "signal": confluence,
-        "confluence": confluence,
-        "engines": engines,
-        "timestamp": datetime.now().isoformat(),
-    }
-
-
-def _mock_engine_scores(index: str) -> dict:
-    """Mock engine scores for an index."""
-    from engines import ENGINE_REGISTRY
-    engines = {}
-    for name, cls in ENGINE_REGISTRY.items():
-        engine = cls()
-        engines[name] = engine.run(index)
-    return engines
-
-
-def _mock_oi_chain(index: str) -> list[dict]:
-    """Mock OI chain for heatmap."""
-    import random
-    base = {"NIFTY": 23400, "BANKNIFTY": 51000, "SENSEX": 77500}.get(index, 23000)
-    interval = {"NIFTY": 50, "BANKNIFTY": 100, "SENSEX": 100}.get(index, 50)
-    chain = []
-    for i in range(-10, 11):
-        strike = base + i * interval
-        chain.append({
-            "strike": strike,
-            "call_oi": random.randint(50000, 2000000),
-            "put_oi": random.randint(50000, 2000000),
-            "call_oi_change": random.randint(-100000, 200000),
-            "put_oi_change": random.randint(-100000, 200000),
-            "call_volume": random.randint(1000, 50000),
-            "put_volume": random.randint(1000, 50000),
-            "call_iv": round(random.uniform(8, 25), 2),
-            "put_iv": round(random.uniform(8, 25), 2),
-        })
-    return chain
-
-
-def _mock_macro() -> dict:
-    """Mock macro data."""
-    import random
-    return {
-        "vix": round(random.uniform(11, 19), 2),
-        "vix_change": round(random.uniform(-1.5, 1.5), 2),
-        "vix_level": "NORMAL",
-        "fii_cash_net": round(random.uniform(-3000, 3000), 0),
-        "fii_cash_direction": random.choice(["BUY", "SELL"]),
-        "gift_nifty": 23500 + random.randint(-80, 80),
-        "gift_nifty_bias": random.choice(["BULLISH", "NEUTRAL", "BEARISH"]),
-        "gift_nifty_gap": round(random.uniform(-60, 60), 0),
-        "fii_futures_net": random.randint(-50000, 50000),
-        "market_open": is_market_open(),
-        "expiry_day": is_expiry_day(),
-        "timestamp": datetime.now().isoformat(),
-    }
 
 
 # ─── STATIC FILES (Render deployment) ───────────────────────────

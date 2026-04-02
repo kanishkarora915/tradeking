@@ -62,7 +62,7 @@ class MacroEngine:
         """
         try:
             if vix == 0 and fii_cash_net == 0 and gift_nifty == 0:
-                return self._mock_result(index)
+                return {"score": 0, "vix": 0, "vix_change": 0, "vix_interpretation": "NO_DATA", "vix_level": "NO_DATA", "fii_cash_net": 0, "fii_cash_direction": "N/A", "gift_nifty": 0, "gift_nifty_bias": "NEUTRAL", "gift_nifty_gap": 0, "fii_futures_net": 0, "no_data": True}
 
             score = 0.0
 
@@ -101,19 +101,3 @@ class MacroEngine:
             logger.error(f"Macro Engine error for {index}: {e}")
             return {"score": 0, "vix": 0, "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        vix = round(random.uniform(11, 22), 2)
-        return {
-            "score": round(random.uniform(-2, 2), 2),
-            "vix": vix,
-            "vix_change": round(random.uniform(-2, 2), 2),
-            "vix_interpretation": random.choice(["CONFIRMED_RALLY", "FAKE_SELLOFF", "NEUTRAL"]),
-            "vix_level": "LOW" if vix < 14 else "HIGH" if vix > 20 else "NORMAL",
-            "fii_cash_net": round(random.uniform(-3000, 3000), 2),
-            "fii_cash_direction": random.choice(["BUY", "SELL"]),
-            "gift_nifty": 23500 + random.uniform(-100, 100),
-            "gift_nifty_bias": random.choice(["BULLISH", "BEARISH", "NEUTRAL"]),
-            "gift_nifty_gap": round(random.uniform(-80, 80), 2),
-            "fii_futures_net": random.randint(-60000, 60000),
-        }

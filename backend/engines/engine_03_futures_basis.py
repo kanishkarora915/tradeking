@@ -76,7 +76,7 @@ class FuturesBasisEngine:
         """
         try:
             if spot_price == 0 or futures_price == 0:
-                return self._mock_result(index)
+                return {"score": 0, "basis": 0, "basis_pct": 0, "trend": "NO_DATA", "trend_direction": "NEUTRAL", "fii_stance": "NEUTRAL", "fii_net_futures": 0, "rollover_active": False, "rollover_pct": 0, "no_data": True}
 
             basis = self.calculate_basis(futures_price, spot_price)
             basis_pct_val = self.basis_pct(futures_price, spot_price)
@@ -132,17 +132,3 @@ class FuturesBasisEngine:
             logger.error(f"Futures Basis Engine error for {index}: {e}")
             return {"score": 0, "basis": 0, "basis_pct": 0, "trend": "ERROR", "fii_stance": "NEUTRAL", "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        basis = random.uniform(-30, 80)
-        return {
-            "score": round(random.uniform(-2, 2), 2),
-            "basis": round(basis, 2),
-            "basis_pct": round(basis / 23000 * 100, 4),
-            "trend": random.choice(["EXPANDING_PREMIUM", "COLLAPSING_PREMIUM", "NEUTRAL"]),
-            "trend_direction": random.choice(["BULLISH", "BEARISH", "NEUTRAL"]),
-            "fii_stance": random.choice(["LONG", "SHORT", "NEUTRAL"]),
-            "fii_net_futures": random.randint(-60000, 60000),
-            "rollover_active": False,
-            "rollover_pct": 0.0,
-        }

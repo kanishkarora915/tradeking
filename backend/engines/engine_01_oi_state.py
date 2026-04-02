@@ -57,7 +57,7 @@ class OIStateEngine:
         """
         try:
             if not chain_data:
-                return self._mock_result(index)
+                return {"score": 0, "state": "NO_DATA", "oi_velocity": 0, "dominant_strike": 0, "signal_strikes": [], "call_oi_change": 0, "put_oi_change": 0, "no_data": True}
 
             atm_strikes = self._get_atm_strikes(spot_price, index)
 
@@ -112,17 +112,3 @@ class OIStateEngine:
             logger.error(f"OI State Engine error for {index}: {e}")
             return {"score": 0, "state": "NEUTRAL", "oi_velocity": 0, "dominant_strike": 0, "signal_strikes": [], "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        """Return mock data for development."""
-        import random
-        states = list(self.WEIGHTS.keys())
-        state = random.choice(states)
-        return {
-            "score": self.WEIGHTS[state],
-            "state": state,
-            "oi_velocity": round(random.uniform(-15, 15), 2),
-            "dominant_strike": {"NIFTY": 23450, "BANKNIFTY": 51200, "SENSEX": 77800}.get(index, 0),
-            "signal_strikes": [],
-            "call_oi_change": random.randint(-50000, 50000),
-            "put_oi_change": random.randint(-50000, 50000),
-        }

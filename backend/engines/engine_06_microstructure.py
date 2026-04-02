@@ -102,7 +102,7 @@ class MicrostructureEngine:
         """
         try:
             if not tick_data:
-                return self._mock_result(index)
+                return {"score": 0, "vwap": 0, "buy_delta": 50, "spread_info": {}, "icebergs": [], "price_vs_vwap": "NO_DATA", "no_data": True}
 
             vwap = self.calculate_vwap(tick_data)
             buy_delta = self.calculate_buy_delta(tick_data)
@@ -153,16 +153,3 @@ class MicrostructureEngine:
             logger.error(f"Microstructure Engine error for {index}: {e}")
             return {"score": 0, "vwap": 0, "buy_delta": 50, "spread_info": {}, "icebergs": [], "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        base = {"NIFTY": 23450, "BANKNIFTY": 51200, "SENSEX": 77800}.get(index, 23000)
-        vwap = base + random.uniform(-50, 50)
-        delta = random.uniform(30, 70)
-        return {
-            "score": round(random.uniform(-1, 1), 2),
-            "vwap": round(vwap, 2),
-            "buy_delta": round(delta, 1),
-            "spread_info": {"current_spread": 0.5, "avg_spread": 0.3, "spread_ratio": 1.67, "alert": False},
-            "icebergs": [],
-            "price_vs_vwap": "ABOVE" if base > vwap else "BELOW",
-        }

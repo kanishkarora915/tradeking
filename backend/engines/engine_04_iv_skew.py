@@ -73,7 +73,7 @@ class IVSkewEngine:
         """
         try:
             if not chain_data and current_iv == 0:
-                return self._mock_result(index)
+                return {"score": 0, "ivr": 0, "current_iv": 0, "skew": 0, "term_structure_ratio": 1.0, "gate_active": False, "iv_level": "NO_DATA", "no_data": True}
 
             # Calculate IVR
             if current_iv > 0 and iv_52w_high > 0:
@@ -129,15 +129,3 @@ class IVSkewEngine:
             logger.error(f"IV Skew Engine error for {index}: {e}")
             return {"score": 0, "ivr": 50, "skew": 0, "term_structure_ratio": 1.0, "gate_active": False, "error": str(e)}
 
-    def _mock_result(self, index: str) -> dict:
-        import random
-        ivr = random.uniform(10, 70)
-        return {
-            "score": round(random.uniform(-2, 2), 2),
-            "ivr": round(ivr, 1),
-            "current_iv": round(random.uniform(10, 25), 2),
-            "skew": round(random.uniform(-8, 8), 2),
-            "term_structure_ratio": round(random.uniform(0.85, 1.15), 3),
-            "gate_active": ivr > 60,
-            "iv_level": "LOW" if ivr < 30 else "HIGH" if ivr > 60 else "NORMAL",
-        }

@@ -185,7 +185,7 @@ class TrapFingerprintEngine:
         """
         try:
             if current_price == 0 or not breakout_direction:
-                return self._mock_result(index)
+                return {"score": 0, "trap_type": None, "conditions_met": [], "conditions_total": 0, "confidence": None, "trapped_level": 0, "signal": None, "breakout_direction": "", "condition_details": {}, "no_data": True}
 
             conditions_met = []
             condition_details = {}
@@ -270,43 +270,3 @@ class TrapFingerprintEngine:
                 "confidence": None, "trapped_level": 0, "signal": None, "error": str(e),
             }
 
-    def _mock_result(self, index: str) -> dict:
-        """Return mock trap data for development."""
-        import random
-        # 30% chance of trap detection in mock mode
-        if random.random() < 0.3:
-            direction = random.choice(["UP", "DOWN"])
-            conditions = random.sample([1, 2, 3, 4, 5], k=random.randint(3, 5))
-            if direction == "UP":
-                trap_type = "BULL_TRAP"
-                score = -3.0 if len(conditions) == 5 else -2.0
-                signal = "STRONG_PUT" if len(conditions) == 5 else "PUT"
-            else:
-                trap_type = "BEAR_TRAP"
-                score = 3.0 if len(conditions) == 5 else 2.0
-                signal = "STRONG_CALL" if len(conditions) == 5 else "CALL"
-
-            base = {"NIFTY": 23450, "BANKNIFTY": 51200, "SENSEX": 77800}.get(index, 23000)
-            return {
-                "score": score,
-                "trap_type": trap_type,
-                "conditions_met": sorted(conditions),
-                "conditions_total": len(conditions),
-                "confidence": "CONFIRMED" if len(conditions) == 5 else "PARTIAL",
-                "trapped_level": base + random.choice([-100, -50, 0, 50, 100]),
-                "signal": signal,
-                "breakout_direction": direction,
-                "condition_details": {},
-            }
-        else:
-            return {
-                "score": 0,
-                "trap_type": None,
-                "conditions_met": [],
-                "conditions_total": 0,
-                "confidence": None,
-                "trapped_level": 0,
-                "signal": None,
-                "breakout_direction": "",
-                "condition_details": {},
-            }
