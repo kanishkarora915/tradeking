@@ -25,8 +25,10 @@ export default function useSignals() {
       const sigData = await sigRes.json()
       const macroData = await macroRes.json()
 
-      prevSignals.current = signals
-      setSignals(sigData)
+      setSignals(prev => {
+        prevSignals.current = prev
+        return sigData
+      })
       setMacro(macroData)
       setLastUpdate(new Date().toISOString())
       setLoading(false)
@@ -36,13 +38,16 @@ export default function useSignals() {
     }
   }, [])
 
+  // Stable callback — no dependency on signals state
   const handleWSMessage = useCallback((message) => {
     if (message.type === 'signals' && message.data) {
-      prevSignals.current = signals
-      setSignals(message.data)
+      setSignals(prev => {
+        prevSignals.current = prev
+        return message.data
+      })
       setLastUpdate(new Date().toISOString())
     }
-  }, [signals])
+  }, [])
 
   useEffect(() => {
     fetchSignals()
