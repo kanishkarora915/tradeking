@@ -12,6 +12,8 @@ export default function IndexCard({ index, data }) {
   const score = data?.score || 0
   const confidence = data?.confidence || 'LOW'
   const spot = data?.spot_price || 0
+  const prevClose = data?.prev_close || 0
+  const changePct = data?.price_change_pct || 0
   const enginesBull = data?.engines_bullish || 0
   const enginesBear = data?.engines_bearish || 0
   const topReason = data?.top_reason || '—'
@@ -20,6 +22,7 @@ export default function IndexCard({ index, data }) {
   const vix = data?.vix || 0
   const ivrGate = data?.ivr_gate
   const expiryGate = data?.expiry_gate
+  const trade = data?.trade || {}
 
   const cls = signalClass(signal)
   const isCall = signal.includes('CALL')
@@ -55,7 +58,14 @@ export default function IndexCard({ index, data }) {
           <span className={`status-dot status-dot--live`} style={{ marginLeft: 8 }} />
           <span className="text-xs text-secondary" style={{ marginLeft: 4 }}>LIVE</span>
         </div>
-        <span className="mono font-bold text-lg">{formatNumber(spot)}</span>
+        <div style={{ textAlign: 'right' }}>
+          <span className="mono font-bold text-lg">{formatNumber(spot)}</span>
+          {changePct !== 0 && (
+            <span className={`mono text-xs ${changePct > 0 ? 'text-green' : 'text-red'}`} style={{ marginLeft: 6 }}>
+              {changePct > 0 ? '+' : ''}{changePct.toFixed(2)}%
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Gate Overlays */}
@@ -139,6 +149,32 @@ export default function IndexCard({ index, data }) {
         <StatPill label="PCR" value={pcr?.toFixed(2)} />
         <StatPill label="VIX" value={vix?.toFixed(1)} />
       </div>
+
+      {/* Trade Signal Box */}
+      {trade.tradeable && (
+        <div style={styles.tradeBox}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <span className={`signal-badge signal-badge--${trade.direction === 'CALL' ? 'call' : 'put'}`}>
+              {trade.direction} {trade.entry_strike}
+            </span>
+            <span className="mono text-xs text-secondary">RR: {trade.risk_reward}x | {trade.max_lots} lots</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ textAlign: 'center' }}>
+              <span className="text-xs text-secondary">ENTRY</span>
+              <div className="mono text-sm font-bold text-blue">{trade.entry_premium?.toFixed(1)}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <span className="text-xs text-secondary">STOPLOSS</span>
+              <div className="mono text-sm font-bold text-red">{trade.stoploss_premium?.toFixed(1)}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <span className="text-xs text-secondary">TARGET</span>
+              <div className="mono text-sm font-bold text-green">{trade.target_premium?.toFixed(1)}</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -198,6 +234,12 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 2,
+  },
+  tradeBox: {
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    padding: '10px 12px',
   },
   gateOverlay: {
     background: 'rgba(255, 214, 10, 0.08)',

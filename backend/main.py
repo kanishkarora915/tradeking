@@ -23,6 +23,7 @@ from scheduler import (
     run_all_engines,
     get_latest_signals,
     get_latest_engine_scores,
+    get_latest_chain_data,
     latest_signals,
 )
 from kite_auth import get_login_url, generate_session, is_authenticated
@@ -87,6 +88,10 @@ async def get_signals():
         data = signals.get(index, {})
         sig = data.get("signal", {})
         conf = data.get("confluence", {})
+        trade = data.get("trade", {})
+        iv = data.get("engines", {}).get("engine_04_iv_skew", {})
+        liq = data.get("engines", {}).get("engine_05_liquidity_pool", {})
+        macro_e = data.get("engines", {}).get("engine_07_macro", {})
         result[index] = {
             "index": index,
             "signal": conf.get("signal", "WAIT"),
@@ -97,7 +102,25 @@ async def get_signals():
             "top_reason": conf.get("top_signal_reason", ""),
             "ivr_gate": conf.get("ivr_gate", False),
             "expiry_gate": conf.get("expiry_gate", False),
-            "spot_price": data.get("spot_price", sig.get("spot_price", 0)),
+            "spot_price": data.get("spot_price", 0),
+            "prev_close": data.get("prev_close", 0),
+            "price_change_pct": data.get("price_change_pct", 0),
+            "futures_price": data.get("futures_price", 0),
+            "ivr": iv.get("ivr", 0),
+            "pcr": 0,
+            "vix": macro_e.get("vix", 0),
+            "max_pain": liq.get("max_pain", 0),
+            "trade": {
+                "direction": trade.get("direction"),
+                "entry_strike": trade.get("entry_strike", 0),
+                "entry_premium": trade.get("entry_premium", 0),
+                "stoploss_premium": trade.get("stoploss_premium", 0),
+                "target_premium": trade.get("target_premium", 0),
+                "risk_reward": trade.get("risk_reward", 0),
+                "max_lots": trade.get("max_lots", 0),
+                "lot_size": trade.get("lot_size", 0),
+                "tradeable": trade.get("tradeable", False),
+            },
             "timestamp": data.get("timestamp", ""),
         }
     return result
@@ -137,16 +160,9 @@ async def get_oi_chain(index: str):
     if index not in INDICES:
         return JSONResponse(status_code=400, content={"error": f"Invalid index: {index}"})
 
-    # Get real chain from latest engine run
     scores = get_latest_engine_scores(index)
     liquidity = scores.get("engine_05_liquidity_pool", {})
-
-    # Get real chain data from scheduler
-    from scheduler import latest_signals
-    sig_data = latest_signals.get(index, {})
-    engines = sig_data.get("engines", {})
-    # Build chain from OI engine data if available
-    chain = []
+    chain = get_latest_chain_data(index)
 
     return {
         "index": index,
@@ -371,7 +387,11 @@ def _serialize_signals(signals: dict) -> dict:
             "pcr": 0,  # Will be computed from OI data
             "vix": macro.get("vix", 0),
             "max_pain": liquidity.get("max_pain", 0),
-            "spot_price": data.get("spot_price", data.get("signal", {}).get("spot_price", 0)),
+            "spot_price": data.get("spot_price", 0),
+            "prev_close": data.get("prev_close", 0),
+            "price_change_pct": data.get("price_change_pct", 0),
+            "futures_price": data.get("futures_price", 0),
+            "trade": data.get("trade", {}),
             "engines": {k: {"score": v.get("score", 0)} for k, v in engines.items()},
             "timestamp": data.get("timestamp", ""),
         }
