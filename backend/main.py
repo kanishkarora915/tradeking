@@ -28,6 +28,7 @@ from scheduler import (
 )
 from kite_auth import get_login_url, generate_session, is_authenticated
 from notifications.telegram_bot import send_signal_alert, send_trap_alert
+from vix_websocket import vix_clients, get_latest_vix, start_vix_ticker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -228,6 +229,39 @@ async def get_weekly_summary():
     }
 
 
+@app.get("/api/vix")
+async def get_vix():
+    """REST fallback for VIX data + trade signals."""
+    return get_latest_vix()
+
+
+@app.websocket("/ws/vix")
+async def vix_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time VIX + trade signals."""
+    await websocket.accept()
+    vix_clients.add(websocket)
+    logger.info(f"VIX WS client connected. Total: {len(vix_clients)}")
+
+    try:
+        # Send current state immediately
+        data = get_latest_vix()
+        if data.get("vix", 0) > 0:
+            await websocket.send_json({"type": "vix_update", **data})
+
+        while True:
+            try:
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                if msg == "ping":
+                    await websocket.send_text("pong")
+            except asyncio.TimeoutError:
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        vix_clients.discard(websocket)
+        logger.info(f"VIX WS client disconnected. Total: {len(vix_clients)}")
+    except Exception as e:
+        vix_clients.discard(websocket)
+
+
 @app.get("/api/risk")
 async def get_risk():
     """Get capital and risk status."""
@@ -261,8 +295,14 @@ async def kite_callback(request_token: str = Query(None), action: str = Query(No
     try:
         session_data = generate_session(request_token)
         user = session_data.get("user_name", session_data.get("user_id", ""))
-        # Trigger engine run immediately after login
+        # Trigger engine run + VIX ticker immediately after login
         asyncio.create_task(run_all_engines())
+        try:
+            from kite_auth import get_kite
+            kite = get_kite()
+            start_vix_ticker(kite._access_token if hasattr(kite, '_access_token') else session_data.get("access_token", ""))
+        except Exception as ve:
+            logger.error(f"VIX ticker start failed: {ve}")
         return HTMLResponse(f"""
         <html>
         <head>

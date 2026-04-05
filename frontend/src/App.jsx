@@ -10,6 +10,7 @@ import EngineStatusRow from './components/EngineStatusRow'
 import OIHeatmap from './components/OIHeatmap'
 import WeeklySummary from './components/WeeklySummary'
 import RiskPanel from './components/RiskPanel'
+import VIXEngine from './components/VIXEngine'
 import useWebSocket from './hooks/useWebSocket'
 import useSignals from './hooks/useSignals'
 
@@ -17,6 +18,7 @@ const INDICES = ['NIFTY', 'BANKNIFTY', 'SENSEX']
 
 export default function App() {
   const [activeIndex, setActiveIndex] = useState('NIFTY')
+  const [activeTab, setActiveTab] = useState('signals') // 'signals' | 'vix'
   const [authChecked, setAuthChecked] = useState(false)
   const { signals, macro, loading, lastUpdate, handleWSMessage } = useSignals()
   const { status: wsStatus } = useWebSocket(handleWSMessage)
@@ -58,33 +60,56 @@ export default function App() {
       {/* Top Bar */}
       <TopBar macro={macro} wsStatus={wsStatus} lastUpdate={lastUpdate} />
 
+      {/* Tab Switcher */}
+      <div style={styles.tabBar}>
+        <button style={activeTab === 'signals' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('signals')}>
+          SIGNALS
+        </button>
+        <button style={activeTab === 'vix' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('vix')}>
+          VIX ENGINE
+        </button>
+      </div>
+
       {/* Trap Alert Banner */}
       <TrapAlertBanner signals={signals} />
 
-      {/* Main 3-Column Grid */}
-      <div className="main-grid">
-        {/* Left Sidebar — Macro + OI Heatmap */}
-        <div style={styles.leftCol}>
-          <MacroPanel macro={macro} />
-          <OIHeatmap index={activeIndex} />
-          <WeeklySummary />
-        </div>
+      {activeTab === 'signals' ? (
+        /* ─── SIGNALS TAB ─── */
+        <div className="main-grid">
+          <div style={styles.leftCol}>
+            <MacroPanel macro={macro} />
+            <OIHeatmap index={activeIndex} />
+            <WeeklySummary />
+          </div>
 
-        {/* Center — 3 Index Cards */}
-        <div style={styles.centerCol}>
-          {INDICES.map((index) => (
-            <div key={index} onClick={() => setActiveIndex(index)} style={{ cursor: 'pointer' }}>
-              <IndexCard index={index} data={signals[index]} />
-            </div>
-          ))}
-        </div>
+          <div style={styles.centerCol}>
+            {INDICES.map((index) => (
+              <div key={index} onClick={() => setActiveIndex(index)} style={{ cursor: 'pointer' }}>
+                <IndexCard index={index} data={signals[index]} />
+              </div>
+            ))}
+          </div>
 
-        {/* Right Sidebar — Engines + Risk */}
-        <div style={styles.rightCol}>
-          <EngineStatusRow engines={activeEngines} index={activeIndex} />
-          <RiskPanel />
+          <div style={styles.rightCol}>
+            <EngineStatusRow engines={activeEngines} index={activeIndex} />
+            <RiskPanel />
+          </div>
         </div>
-      </div>
+      ) : (
+        /* ─── VIX ENGINE TAB ─── */
+        <div style={styles.vixLayout}>
+          <div style={styles.vixCenter}>
+            <VIXEngine />
+          </div>
+          <div style={styles.vixSide}>
+            {INDICES.map((index) => (
+              <div key={index}>
+                <IndexCard index={index} data={signals[index]} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={styles.footer}>
@@ -168,6 +193,58 @@ function MacroPanel({ macro }) {
 }
 
 const styles = {
+  tabBar: {
+    display: 'flex',
+    gap: 0,
+    padding: '0 16px',
+    borderBottom: '1px solid var(--border)',
+    background: 'var(--bg-card)',
+    flexShrink: 0,
+  },
+  tab: {
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    color: 'var(--text-secondary)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '8px 16px',
+    cursor: 'pointer',
+    letterSpacing: '0.08em',
+  },
+  tabActive: {
+    background: 'none',
+    border: 'none',
+    borderBottom: '2px solid var(--accent-blue)',
+    color: 'var(--accent-blue)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: 11,
+    fontWeight: 700,
+    padding: '8px 16px',
+    cursor: 'pointer',
+    letterSpacing: '0.08em',
+  },
+  vixLayout: {
+    display: 'grid',
+    gridTemplateColumns: '500px 1fr',
+    gap: 16,
+    flex: 1,
+    padding: 16,
+    overflow: 'auto',
+    minHeight: 0,
+  },
+  vixCenter: {
+    overflow: 'auto',
+    minHeight: 0,
+  },
+  vixSide: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    overflow: 'auto',
+    minHeight: 0,
+  },
   leftCol: {
     display: 'flex',
     flexDirection: 'column',
